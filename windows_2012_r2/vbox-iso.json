@@ -1,30 +1,70 @@
 {
   "builders": [{
-    "type": "virtualbox-windows-iso",
+    "type": "virtualbox-iso",
     "vm_name": "windows_2012_r2",
-    "iso_url": "iso/en_windows_server_2012_r2_with_update_x64_dvd_4065220.iso",
-    "iso_checksum_type": "md5",
-    "iso_checksum": "af6a7f966b4c4e31da5bc3cdc3afcbec",
-    "headless": false,
+    "iso_url": "{{ user `iso_url` }}",
+    "iso_checksum_type": "sha1",
+    "iso_checksum": "{{ user `iso_checksum` }}",
+    "headless": "{{ user `headless` }}",
     "boot_wait": "2m",
-    "winrm_username": "packer",
-    "winrm_password": "packer",
-    "winrm_wait_timeout": "3h",
+	"communicator": "winrm",
+	"winrm_username": "vagrant",
+	"winrm_password": "vagrant",
+	"winrm_timeout": "12h",
     "shutdown_timeout": "1h",
-    "shutdown_command": "shutdown /s /t 10 /f /d p:4:1 /c \"Packer Shutdown\"",
+	"shutdown_command": "a:/PackerShutdown.bat",
     "guest_os_type": "Windows2012_64",
-    "guest_additions_mode": "disable",
+    "guest_additions_mode": "{{ user `guest_additions_mode` }}",
     "disk_size": 61440,
     "format": "ova",
     "floppy_files": [
       "windows_2012_r2/Autounattend.xml",
       "scripts/init.bat",
       "scripts/winrm.bat",
-      "scripts/win-updates.ps1"
+	  "scripts/PackerShutdown.bat",
+	  "scripts/postunattend.xml",
+	  "scripts/oracle.cer"
     ],
     "vboxmanage": [
-      [ "modifyvm", "{{.Name}}", "--memory", "2048" ],
-      [ "modifyvm", "{{.Name}}", "--cpus", "1" ]
+        [ "modifyvm", "{{.Name}}", "--natpf1", "guest_winrm,tcp,,55985,,5985" ],
+        [ "modifyvm", "{{.Name}}", "--memory", "2048" ],
+        [ "modifyvm", "{{.Name}}", "--vram", "48" ],
+        [ "modifyvm", "{{.Name}}", "--cpus", "2" ]
     ]
-  }]
+  }],
+  "provisioners": [
+	{ "type": "powershell", "inline": [ "Install-Module PowerYaml" ], "elevated_user": "vagrant", "elevated_password": "vagrant" },
+	{ "type": "powershell", "inline": [ "(new-object Net.WebClient).DownloadString(\"http://psget.net/GetPsGet.ps1\") | iex" ], "elevated_user": "vagrant", "elevated_password": "vagrant" },
+	{ "type": "powershell", "script": "scripts/install-chocolatey.ps1"},	
+	{ "type": "powershell", "inline": [ "choco install git -y" ], "elevated_user": "vagrant", "elevated_password": "vagrant" },	
+	{ "type": "powershell", "inline": [ "choco install notepadplusplus -y" ], "elevated_user": "vagrant", "elevated_password": "vagrant" },	
+	{ "type": "powershell", "inline": [ "choco install 7zip.commandline -y" ], "elevated_user": "vagrant", "elevated_password": "vagrant" },	
+	{ "type": "powershell", "inline": [ "choco install bginfo -y" ], "elevated_user": "vagrant", "elevated_password": "vagrant" },	
+	{ "type": "powershell", "inline": [ "choco install bginfo-startup -pre -y" ], "elevated_user": "vagrant", "elevated_password": "vagrant" },	
+	{ "type": "powershell", "inline": [ "(New-Object System.Net.WebClient).DownloadFile('http://download.virtualbox.org/virtualbox/{{ user `guest_additions_version` }}/VBoxGuestAdditions_{{ user `guest_additions_version` }}.iso', 'C:\Users\vagrant\VBoxGuestAdditions.iso')" ], "elevated_user": "vagrant", "elevated_password": "vagrant" },	
+	{ "type": "powershell", "script": "scripts/install-dotnet35.ps1"},
+	{ "type": "powershell", "script": "scripts/install-vbox-additions.ps1"},
+	{ "type": "powershell", "script": "scripts/cleanup-disk.ps1"},
+	{ "type": "powershell", "script": "scripts/zero-space.ps1"},
+	{ "type": "powershell", "script": "scripts/recreate-page-file.ps1"},
+	{ "type": "powershell", "script": "scripts/Setup-PostUnAttend.ps1"}
+	
+	
+  ],  
+  "post-processors": [
+    [{
+      "type": "vagrant",
+      "keep_input_artifact": true,
+      "output": "windows2012r2min-{{.Provider}}.box",
+      "vagrantfile_template": "windows_2012_r2/Vagrantfile.template"
+    }]
+  ],  
+"variables": {
+    "core": "",
+    "guest_additions_mode": "disable",
+	"guest_additions_version": "5.1.6",
+    "headless": "true",
+    "iso_checksum": "849734f37346385dac2c101e4aacba4626bb141c",
+    "iso_url": "http://care.dlservice.microsoft.com/dl/download/6/2/A/62A76ABB-9990-4EFC-A4FE-C7D698DAEB96/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_SERVER_EVAL_EN-US-IR3_SSS_X64FREE_EN-US_DV9.ISO"
+  }  
 }

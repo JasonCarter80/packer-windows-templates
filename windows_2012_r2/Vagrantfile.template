@@ -12,14 +12,15 @@ Vagrant.configure("2") do |config|
     config.vm.network :forwarded_port, guest: 5985, host: 5985, id: "winrm", auto_correct: true
 
     # Admin user name and password
-    config.winrm.username = "packer"
-    config.winrm.password = "packer"
+    config.winrm.username = "vagrant"
+    config.winrm.password = "vagrant"
 
     config.vm.provider :virtualbox do |v, override|
         #v.gui = true
         v.customize ["modifyvm", :id, "--memory", 2048]
         v.customize ["modifyvm", :id, "--cpus", 2]
         v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
+		v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
     end
 
     config.vm.provider :vmware_fusion do |v, override|
